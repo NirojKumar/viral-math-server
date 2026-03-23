@@ -3,6 +3,7 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import config from "../config/config.js";
 import crypto from "crypto";
+import { sendEmail } from "../utils/nodemailer.js";
 
 export const register = async (req, res) => {
     try {
@@ -36,37 +37,163 @@ export const register = async (req, res) => {
 
         const createdUser = await userModel.create(userData);
 
-        // Token Generation
+        // Otp Generation
 
-        const refreshToken = jwt.sign({
-            id: createdUser._id
-        }, config.JWT_SECRET, {
-            expiresIn: "7d"
-        });
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
 
-        const refreshTokenHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
+        createdUser.otp = otpHash;
+        createdUser.otpExpiry = Date.now() + 5 * 60 * 1000;
+        createdUser.isVerified = false;
 
-        createdUser.refreshToken = refreshTokenHash;
         await createdUser.save();
 
-        const accessToken = await jwt.sign({
-            id: createdUser._id,
-        }, config.JWT_SECRET, {
-            expiresIn: "15m"
+        await sendEmail(
+            email,
+            "Your OTP Code - Viral Math",
+            `
+    <div style="font-family: Arial; padding: 20px;">
+        <h2>Verify Your Account</h2>
+        <p>Your OTP code is:</p>
+        <h1 style="letter-spacing: 5px;">${otp}</h1>
+        <p>This code will expire in 5 minutes.</p>
+    </div>
+    `
+        );
+
+        return res.status(201).json({
+            message: "OTP sent to your email",
         });
 
-        res.cookie("refreshToken", refreshToken, {
-            httpOnly: true,
-            secure: true,
-            sameSite: "strict",
-            maxAge: 7 * 24 * 60 * 60 * 1000
-        });
+        // await createdUser.save();
 
-        return await res.status(201).json({ message: "User created successfully", user: { username, email, fullname }, token: accessToken, refreshToken });
+        // // Token Generation
+
+        // const refreshToken = jwt.sign({
+        //     id: createdUser._id
+        // }, config.JWT_SECRET, {
+        //     expiresIn: "7d"
+        // });
+
+        // const refreshTokenHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
+
+        // createdUser.refreshToken = refreshTokenHash;
+        // await createdUser.save();
+
+        // const accessToken = await jwt.sign({
+        //     id: createdUser._id,
+        // }, config.JWT_SECRET, {
+        //     expiresIn: "15m"
+        // });
+
+        // res.cookie("refreshToken", refreshToken, {
+        //     httpOnly: true,
+        //     secure: true,
+        //     sameSite: "strict",
+        //     maxAge: 7 * 24 * 60 * 60 * 1000
+        // });
+
+        // return await res.status(201).json({ message: "User created successfully", user: { username, email, fullname }, token: accessToken, refreshToken });
 
     } catch (error) {
         console.log("Error in /register :", error);
         return await res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+export const verifyOtp = async (req, res) => {
+    try {
+        const { email, otp } = req.body;
+
+        const user = await userModel.findOne({ email });
+        if (!user) {
+            return res.status(400).json({ message: "User not found" });
+        }
+
+        if (user.otpExpiry < Date.now()) {
+            return res.status(400).json({ message: "OTP expired" });
+        }
+
+        const hashedOtp = crypto.createHash("sha256").update(otp).digest("hex");
+
+        if (user.otp !== hashedOtp) {
+            return res.status(400).json({ message: "Invalid OTP" });
+        }
+
+        // ✅ Mark verified
+        user.isVerified = true;
+        user.otp = null;
+        user.otpExpiry = null;
+
+        // ✅ Generate tokens now (same as your login)
+        const refreshToken = jwt.sign({ id: user._id }, config.JWT_SECRET, {
+            expiresIn: "7d"
+        });
+
+        const refreshTokenHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
+        user.refreshToken = refreshTokenHash;
+
+        await user.save();
+
+        const accessToken = jwt.sign({ id: user._id }, config.JWT_SECRET, {
+            expiresIn: "15m"
+        });
+
+        return res.status(200).json({
+            message: "OTP verified",
+            user: {
+                username: user.username,
+                email: user.email,
+                fullname: user.fullname
+            },
+            token: accessToken,
+            refreshToken
+        });
+
+    } catch (error) {
+        return res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+export const resendOtp = async (req, res) => {
+    try {
+        const { email } = req.body;
+
+        const user = await userModel.findOne({ email });
+        if (!user) {
+            return res.status(400).json({ message: "User not found" });
+        }
+
+        // Optional: prevent spam (30 sec cooldown)
+        if (user.otpExpiry && user.otpExpiry > Date.now() - 30 * 1000) {
+            return res.status(400).json({ message: "Wait before requesting again" });
+        }
+
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
+
+        user.otp = otpHash;
+        user.otpExpiry = Date.now() + 5 * 60 * 1000;
+
+        await user.save();
+
+        await sendEmail(
+            user.email,
+            "Your OTP Code - Viral Math",
+            `
+    <div style="font-family: Arial; padding: 20px;">
+        <h2>Verify Your Account</h2>
+        <p>Your OTP code is:</p>
+        <h1 style="letter-spacing: 5px;">${otp}</h1>
+        <p>This code will expire in 5 minutes.</p>
+    </div>
+    `
+        );
+
+        return res.status(200).json({ message: "OTP resent" });
+
+    } catch (error) {
+        return res.status(500).json({ message: "Internal server error" });
     }
 };
 
@@ -86,6 +213,10 @@ export const login = async (req, res) => {
 
         if (!user) {
             return await res.status(400).json({ message: "Invalid credentials!" });
+        }
+
+        if (!user.isVerified) {
+            return res.status(403).json({ message: "Please verify your account first" });
         }
 
         const isPasswordValid = await bcrypt.compare(password, user.password);

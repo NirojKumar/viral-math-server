@@ -45,6 +45,20 @@ const userSchema = new mongoose.Schema({
     streakUpdatedAt: {
         type: Date,
         default: Date.now
+    },
+    otp: {
+        type: String,
+        required: false,
+        default: ""
+    },
+    otpExpiry: {
+        type: Date,
+        required: false,
+        default: ""
+    },
+    isVerified: {
+        type: Boolean,
+        default: false
     }
 }, { timestamps: true });
 
