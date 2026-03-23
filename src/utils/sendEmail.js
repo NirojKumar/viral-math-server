@@ -10,7 +10,11 @@ const transporter = nodemailer.createTransport({
     },
     tls: {
         rejectUnauthorized: false,
-    }
+    },
+    // ✅ Prevent hanging
+    connectionTimeout: 10000, // 10 sec
+    greetingTimeout: 10000,
+    socketTimeout: 10000,
 });
 
 export const sendEmail = async (to, subject, html) => {
@@ -23,8 +27,9 @@ export const sendEmail = async (to, subject, html) => {
         });
 
         console.log("OTP Mail sent successfully.");
+        return true;
     } catch (error) {
         console.log("OTP Mail Error: ", error);
-        throw new Error("OTP Mail not sent");
+        return false;
     }
 };

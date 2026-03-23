@@ -51,7 +51,7 @@ const userSchema = new mongoose.Schema({
         required: false,
         default: ""
     },
-    otpLastSentAt: {
+    otpExpiresAt: {
         type: Date,
         required: false,
         default: ""

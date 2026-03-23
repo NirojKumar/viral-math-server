@@ -44,7 +44,7 @@ export const register = async (req, res) => {
         const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
 
         createdUser.otp = otpHash;
-        createdUser.otpLastSentAt = Date.now() + 5 * 60 * 1000;
+        createdUser.otpExpiresAt = Date.now() + 5 * 60 * 1000;
         createdUser.isVerified = false;
 
         await createdUser.save();
@@ -74,7 +74,7 @@ export const verifyOtp = async (req, res) => {
             return res.status(400).json({ message: "User not found" });
         }
 
-        if (user.otpLastSentAt < Date.now()) {
+        if (user.otpExpiresAt < Date.now()) {
             return res.status(400).json({ message: "OTP expired" });
         }
 
@@ -87,7 +87,7 @@ export const verifyOtp = async (req, res) => {
         // ✅ Mark verified
         user.isVerified = true;
         user.otp = null;
-        user.otpLastSentAt = null;
+        user.otpExpiresAt = null;
 
         // ✅ Generate tokens now (same as your login)
         const refreshToken = jwt.sign({ id: user._id }, config.JWT_SECRET, {
@@ -133,15 +133,21 @@ export const resendOtp = async (req, res) => {
         const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
 
         user.otp = otpHash;
-        user.otpLastSentAt = Date.now() + 5 * 60 * 1000;
+        user.otpExpiresAt = Date.now() + 5 * 60 * 1000;
 
         await user.save();
 
-        await sendEmail(
+        const isEmailSent = await sendEmail(
             user.email,
             "Your OTP Code - Viral Math",
             otpEmailTemplate(otp, 5)
         );
+
+        if (!isEmailSent) {
+            return res.status(500).json({
+                message: "Failed to send OTP email. Try again later."
+            });
+        }
 
         return res.status(200).json({ message: "OTP resent" });
 
