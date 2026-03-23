@@ -7,7 +7,9 @@ import cronJob from "./config/cron.js";
 
 const app = express();
 
-cronJob.start();
+if (config.NODE_ENV === "production") {
+    cronJob.start();
+}
 
 app.use(express.json());
 app.use(morgan("dev"));

@@ -4,12 +4,16 @@ const userSchema = new mongoose.Schema({
     username: {
         type: String,
         required: true,
-        unique: true
+        unique: true,
+        lowercase: true,
+        trim: true
     },
     email: {
         type: String,
         required: true,
-        unique: true
+        unique: true,
+        lowercase: true,
+        trim: true
     },
     password: {
         type: String,
@@ -32,12 +36,15 @@ const userSchema = new mongoose.Schema({
     streak: {
         type: Number,
         required: false,
-        default: 0
+        default: 1
     },
     lastActive: {
         type: Date,
-        required: false,
-        default: Date.now()
+        default: Date.now
+    },
+    streakUpdatedAt: {
+        type: Date,
+        default: Date.now
     }
 }, { timestamps: true });
 

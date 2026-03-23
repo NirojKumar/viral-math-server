@@ -25,13 +25,13 @@ export const register = async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, 10);
         const randomPicture = `https://api.dicebear.com/9.x/avataaars/svg?seed=${username}`;
         const userData = {
-            username,
-            email,
+            username: username.toLowerCase().trim(),
+            email: email.toLowerCase().trim(),
             password: hashedPassword,
             fullname,
             profilePicture: randomPicture,
             streak: 0,
-            lastActive: Date.now()
+            lastActive: new Date()
         }
 
         const createdUser = await userModel.create(userData);
@@ -79,8 +79,8 @@ export const login = async (req, res) => {
 
         const user = await userModel.findOne({
             $or: [
-                { email: emailOrUsername },
-                { username: emailOrUsername }
+                { email: emailOrUsername.toLowerCase().trim() },
+                { username: emailOrUsername.toLowerCase().trim() }
             ]
         })
 
@@ -102,7 +102,22 @@ export const login = async (req, res) => {
         const refreshTokenHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
 
         user.refreshToken = refreshTokenHash;
-        user.lastActive = Date.now();
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const last = new Date(user.lastActive);
+        last.setHours(0, 0, 0, 0);
+
+        const diffDays = (today - last) / (1000 * 60 * 60 * 24);
+
+        if (diffDays === 1) {
+            user.streak += 1; // ✅ continue streak
+        } else if (diffDays > 1) {
+            user.streak = 1; // ✅ reset streak
+        }
+        // diffDays === 0 → same day → do nothing
+
+        user.lastActive = new Date();
         await user.save();
 
         const accessToken = await jwt.sign({
