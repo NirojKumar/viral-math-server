@@ -29,7 +29,9 @@ export const register = async (req, res) => {
             email,
             password: hashedPassword,
             fullname,
-            profilePicture: randomPicture
+            profilePicture: randomPicture,
+            streak: 0,
+            lastActive: Date.now()
         }
 
         const createdUser = await userModel.create(userData);
@@ -100,6 +102,7 @@ export const login = async (req, res) => {
         const refreshTokenHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
 
         user.refreshToken = refreshTokenHash;
+        user.lastActive = Date.now();
         await user.save();
 
         const accessToken = await jwt.sign({

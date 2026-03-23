@@ -28,6 +28,16 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: false,
         default: ""
+    },
+    streak: {
+        type: Number,
+        required: false,
+        default: 0
+    },
+    lastActive: {
+        type: Date,
+        required: false,
+        default: Date.now()
     }
 }, { timestamps: true });
 
