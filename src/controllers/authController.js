@@ -41,19 +41,25 @@ export const register = async (req, res) => {
         // Otp Generation
 
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
+        // const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
 
-        createdUser.otp = otpHash;
+        createdUser.otp = otp;
         createdUser.otpExpiresAt = Date.now() + 5 * 60 * 1000;
         createdUser.isVerified = false;
 
         await createdUser.save();
 
-        await sendEmail(
-            email,
+        const isEmailSent = await sendEmail(
+            userData.email,
             "Your OTP Code - Viral Math",
             otpEmailTemplate(otp, 5)
         );
+
+        if (!isEmailSent) {
+            return res.status(500).json({
+                message: "Failed to send OTP email. Try again later."
+            });
+        }
 
         return res.status(201).json({
             message: "OTP sent to your email",
@@ -78,9 +84,9 @@ export const verifyOtp = async (req, res) => {
             return res.status(400).json({ message: "OTP expired" });
         }
 
-        const hashedOtp = crypto.createHash("sha256").update(otp).digest("hex");
+        // const hashedOtp = crypto.createHash("sha256").update(otp).digest("hex");
 
-        if (user.otp !== hashedOtp) {
+        if (user.otp !== otp) {
             return res.status(400).json({ message: "Invalid OTP" });
         }
 
@@ -130,9 +136,9 @@ export const resendOtp = async (req, res) => {
         }
 
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
+        // const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
 
-        user.otp = otpHash;
+        user.otp = otp;
         user.otpExpiresAt = Date.now() + 5 * 60 * 1000;
 
         await user.save();
