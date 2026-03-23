@@ -83,12 +83,12 @@ export const login = async (req, res) => {
         })
 
         if (!user) {
-            return await res.status(400).json({ message: "User not found" });
+            return await res.status(400).json({ message: "Invalid credentials!" });
         }
 
         const isPasswordValid = await bcrypt.compare(password, user.password);
         if (!isPasswordValid) {
-            return await res.status(400).json({ message: "Invalid Credentials!" });
+            return await res.status(400).json({ message: "Invalid credentials!" });
         }
 
         const refreshToken = jwt.sign({
@@ -125,7 +125,7 @@ export const login = async (req, res) => {
 
 export const refreshAccessToken = async (req, res) => {
     try {
-        const token = req.cookies.refreshToken;
+        const token = req.headers.authorization?.split(" ")[1];
 
         if (!token) {
             return res.status(401).json({ message: "No refresh token" });
@@ -136,6 +136,12 @@ export const refreshAccessToken = async (req, res) => {
         const user = await userModel.findById(decoded.id);
         if (!user) {
             return res.status(401).json({ message: "User not found" });
+        }
+
+        const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
+        if (user.refreshToken !== hashedToken) {
+            return res.status(401).json({ message: "Invalid refresh token" });
         }
 
         const newAccessToken = jwt.sign(
