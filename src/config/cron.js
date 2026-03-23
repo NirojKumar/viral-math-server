@@ -1,7 +1,7 @@
 import cron from "cron";
 import https from "https";
 
-const cronJob = new cron.CronJob("*/1 * * * *", function () {
+const cronJob = new cron.CronJob("*/14 * * * *", function () {
     const url = process.env.BACKEND_RENDER_API_URL;
 
     console.log("API_URL:", url);
