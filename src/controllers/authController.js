@@ -3,7 +3,8 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import config from "../config/config.js";
 import crypto from "crypto";
-import { sendEmail } from "../utils/nodemailer.js";
+import { sendEmail } from "../utils/sendEmail.js";
+import otpEmailTemplate from "../functions/otpEmailTemplate.js";
 
 export const register = async (req, res) => {
     try {
@@ -43,7 +44,7 @@ export const register = async (req, res) => {
         const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
 
         createdUser.otp = otpHash;
-        createdUser.otpExpiry = Date.now() + 5 * 60 * 1000;
+        createdUser.otpLastSentAt = Date.now() + 5 * 60 * 1000;
         createdUser.isVerified = false;
 
         await createdUser.save();
@@ -51,49 +52,12 @@ export const register = async (req, res) => {
         await sendEmail(
             email,
             "Your OTP Code - Viral Math",
-            `
-    <div style="font-family: Arial; padding: 20px;">
-        <h2>Verify Your Account</h2>
-        <p>Your OTP code is:</p>
-        <h1 style="letter-spacing: 5px;">${otp}</h1>
-        <p>This code will expire in 5 minutes.</p>
-    </div>
-    `
+            otpEmailTemplate(otp, 5)
         );
 
         return res.status(201).json({
             message: "OTP sent to your email",
         });
-
-        // await createdUser.save();
-
-        // // Token Generation
-
-        // const refreshToken = jwt.sign({
-        //     id: createdUser._id
-        // }, config.JWT_SECRET, {
-        //     expiresIn: "7d"
-        // });
-
-        // const refreshTokenHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
-
-        // createdUser.refreshToken = refreshTokenHash;
-        // await createdUser.save();
-
-        // const accessToken = await jwt.sign({
-        //     id: createdUser._id,
-        // }, config.JWT_SECRET, {
-        //     expiresIn: "15m"
-        // });
-
-        // res.cookie("refreshToken", refreshToken, {
-        //     httpOnly: true,
-        //     secure: true,
-        //     sameSite: "strict",
-        //     maxAge: 7 * 24 * 60 * 60 * 1000
-        // });
-
-        // return await res.status(201).json({ message: "User created successfully", user: { username, email, fullname }, token: accessToken, refreshToken });
 
     } catch (error) {
         console.log("Error in /register :", error);
@@ -110,7 +74,7 @@ export const verifyOtp = async (req, res) => {
             return res.status(400).json({ message: "User not found" });
         }
 
-        if (user.otpExpiry < Date.now()) {
+        if (user.otpLastSentAt < Date.now()) {
             return res.status(400).json({ message: "OTP expired" });
         }
 
@@ -123,7 +87,7 @@ export const verifyOtp = async (req, res) => {
         // ✅ Mark verified
         user.isVerified = true;
         user.otp = null;
-        user.otpExpiry = null;
+        user.otpLastSentAt = null;
 
         // ✅ Generate tokens now (same as your login)
         const refreshToken = jwt.sign({ id: user._id }, config.JWT_SECRET, {
@@ -151,6 +115,7 @@ export const verifyOtp = async (req, res) => {
         });
 
     } catch (error) {
+        console.log("Error in /verify-otp :", error);
         return res.status(500).json({ message: "Internal server error" });
     }
 };
@@ -164,35 +129,24 @@ export const resendOtp = async (req, res) => {
             return res.status(400).json({ message: "User not found" });
         }
 
-        // Optional: prevent spam (30 sec cooldown)
-        if (user.otpExpiry && user.otpExpiry > Date.now() - 30 * 1000) {
-            return res.status(400).json({ message: "Wait before requesting again" });
-        }
-
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
         const otpHash = crypto.createHash("sha256").update(otp).digest("hex");
 
         user.otp = otpHash;
-        user.otpExpiry = Date.now() + 5 * 60 * 1000;
+        user.otpLastSentAt = Date.now() + 5 * 60 * 1000;
 
         await user.save();
 
         await sendEmail(
             user.email,
             "Your OTP Code - Viral Math",
-            `
-    <div style="font-family: Arial; padding: 20px;">
-        <h2>Verify Your Account</h2>
-        <p>Your OTP code is:</p>
-        <h1 style="letter-spacing: 5px;">${otp}</h1>
-        <p>This code will expire in 5 minutes.</p>
-    </div>
-    `
+            otpEmailTemplate(otp, 5)
         );
 
         return res.status(200).json({ message: "OTP resent" });
 
     } catch (error) {
+        console.log("Error in /resend-otp :", error);
         return res.status(500).json({ message: "Internal server error" });
     }
 };
@@ -309,6 +263,7 @@ export const refreshAccessToken = async (req, res) => {
         });
 
     } catch (error) {
+        console.log("Error in /refresh-token :", error);
         return res.status(401).json({ message: "Invalid refresh token" });
     }
 };
