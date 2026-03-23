@@ -60,7 +60,7 @@ export const register = async (req, res) => {
             maxAge: 7 * 24 * 60 * 60 * 1000
         });
 
-        return await res.status(201).json({ message: "User created successfully", user: { username, email, fullname }, token: accessToken });
+        return await res.status(201).json({ message: "User created successfully", user: { username, email, fullname }, token: accessToken, refreshToken });
 
     } catch (error) {
         console.log("Error in /register :", error);
