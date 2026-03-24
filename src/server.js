@@ -1,9 +1,10 @@
 import express from "express";
-import authRoutes from "./routes/authRoutes.js";
 import morgan from "morgan";
 import connectDB from "./config/db.js";
 import config from "./config/config.js";
 import cronJob from "./config/cron.js";
+import authRoutes from "./routes/authRoutes.js";
+import progressRoutes from "./routes/progressRoutes.js";
 
 const app = express();
 
@@ -19,6 +20,7 @@ app.use("/api/health", (req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
+app.use("/api/progress", progressRoutes);
 connectDB();
 
 app.listen(config.PORT, () => {

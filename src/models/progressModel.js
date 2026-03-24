@@ -1,6 +1,6 @@
-import mongoose, { Schema } from "mongoose";
+import mongoose from "mongoose";
 
-const SessionSchema = new Schema(
+const sessionSchema = new mongoose.Schema(
     {
         type: { type: String, default: "mixed" },
         mode: { type: String, default: "normal" },
@@ -15,29 +15,35 @@ const SessionSchema = new Schema(
     { _id: false }
 );
 
-const ProgressSchema = new Schema(
+const progressSchema = new mongoose.Schema(
     {
         userId: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: "users",
+            ref: "User",
             required: true,
             unique: true,
         },
 
+        // XP
         xp: { type: Number, default: 0 },
         totalXP: { type: Number, default: 0 },
 
+        // Daily streak
         currentDailyStreak: { type: Number, default: 0 },
         longestDailyStreak: { type: Number, default: 0 },
-        lastPracticedDate: { type: String, default: null },
+        lastPracticedDate: { type: String, default: null }, // "YYYY-MM-DD"
 
+        // All-time totals
         totalCorrect: { type: Number, default: 0 },
         totalAnswered: { type: Number, default: 0 },
 
-        sessions: { type: [SessionSchema], default: [] },
+        // Session history (capped at 100)
+        sessions: { type: [sessionSchema], default: [] },
 
+        // Achievements
         unlockedAchievements: { type: [String], default: [] },
 
+        // Difficulty setting
         difficulty: {
             type: String,
             enum: ["easy", "medium", "hard", "custom"],
@@ -46,11 +52,13 @@ const ProgressSchema = new Schema(
         customMin: { type: Number, default: 1 },
         customMax: { type: Number, default: 100 },
 
+        // Daily goal
         dailyGoalTarget: { type: Number, default: 50 },
         dailyGoalProgress: { type: Number, default: 0 },
-        dailyGoalDate: { type: String, default: null },
+        dailyGoalDate: { type: String, default: null }, // "YYYY-MM-DD"
     },
     { timestamps: true }
 );
 
-export const progressModel = mongoose.model("progress", ProgressSchema);
+const progressModel = mongoose.model("Progress", progressSchema);
+export default progressModel;
