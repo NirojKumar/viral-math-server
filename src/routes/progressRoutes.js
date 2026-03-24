@@ -66,7 +66,7 @@ router.get("/", protect, async (req, res) => {
 
 router.post("/session", protect, async (req, res) => {
     try {
-        const { type = "mixed", mode = "normal", correct, total, durationSecs, highestStreak } = req.body;
+        const { type = "mixed", mode = "easy", correct, total, durationSecs, highestStreak } = req.body;
 
         if (correct === undefined || total === undefined || durationSecs === undefined || highestStreak === undefined) {
             return res.status(400).json({ message: "Missing required fields: correct, total, durationSecs, highestStreak" });

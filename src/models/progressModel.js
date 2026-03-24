@@ -47,7 +47,7 @@ const progressSchema = new mongoose.Schema(
         difficulty: {
             type: String,
             enum: ["easy", "medium", "hard", "custom"],
-            default: "medium",
+            default: "easy",
         },
         customMin: { type: Number, default: 1 },
         customMax: { type: Number, default: 100 },
